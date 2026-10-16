@@ -125,7 +125,7 @@ export const translations = {
     openSession: "Open session",
     presentations: "Presentations",
     otherAgenda: "Other agenda details",
-    translateNotice: "Menus follow the language you select. Session titles and descriptions stay in the original programme language until you use your browser’s Translate command. Automated translation can be inaccurate.",
+    translateNotice: "Automatic translation can be inaccurate, especially for scientific terms. The language buttons translate the menus. Session titles and descriptions stay in the original programme language.",
   },
   fr: {
     documentTitle: "Programme scientifique · FIGO Montréal 2027",
@@ -251,7 +251,7 @@ export const translations = {
     openSession: "Ouvrir la séance",
     presentations: "Présentations",
     otherAgenda: "Autres éléments de l’ordre du jour",
-    translateNotice: "Les menus suivent la langue choisie. Les titres et descriptions restent dans la langue d’origine du programme tant que vous n’utilisez pas la commande Traduire de votre navigateur. Une traduction automatique peut être inexacte.",
+    translateNotice: "La traduction automatique peut être inexacte, surtout pour les termes scientifiques. Les boutons de langue traduisent les menus. Les titres et descriptions des séances restent dans la langue d’origine du programme.",
   },
   es: {
     documentTitle: "Programa científico · FIGO Montréal 2027",
@@ -377,7 +377,7 @@ export const translations = {
     openSession: "Abrir la sesión",
     presentations: "Presentaciones",
     otherAgenda: "Otros detalles del orden del día",
-    translateNotice: "Los menús siguen el idioma seleccionado. Los títulos y las descripciones permanecen en el idioma original del programa hasta que use el comando Traducir de su navegador. La traducción automática puede ser inexacta.",
+    translateNotice: "La traducción automática puede ser inexacta, sobre todo en la terminología científica. Los botones de idioma traducen los menús. Los títulos y las descripciones de las sesiones permanecen en el idioma original del programa.",
   },
 };
 

@@ -61,11 +61,11 @@ function bindEvents() {
     updateChrome();
   });
   document.querySelector("#refresh").addEventListener("click", () => load());
-  document.querySelector("#filters-toggle").addEventListener("click", () => setFilterPanel());
-  document.querySelector("#more-filters").addEventListener("click", () => setFilterPanel());
   document.querySelector("#clear-filters").addEventListener("click", () => {
     clearFilters(state.filters);
+    state.date = "all";
     renderFilterOptions();
+    updateDateSelection();
     renderProgramme();
     updateChrome();
   });
@@ -93,10 +93,8 @@ function bindEvents() {
   });
   dialog().addEventListener("keydown", trapFocus);
   document.addEventListener("click", (event) => {
-    if (event.target.closest(".discovery")) return;
-    closeFilterPanel();
     document.querySelectorAll("#filters details[open]").forEach((group) => {
-      group.open = false;
+      if (!group.contains(event.target)) group.open = false;
     });
   });
 }
@@ -225,79 +223,79 @@ function renderDates() {
 
 function renderFilterOptions() {
   const container = document.querySelector("#filters");
-  const wasOpen = container.classList.contains("is-open");
+  const openGroup = container.querySelector("details[open]")?.dataset.group || "";
   container.replaceChildren();
   const options = collectFilterOptions(state.sessions, state.language);
   const rooms = [...new Set(state.sessions.map((session) => session.room).filter(Boolean))].sort((a, b) => roomRank(a) - roomRank(b) || a.localeCompare(b, state.language));
   const groups = [
-    ["streams", "filterStream", orderedStreamNames(state.sessions), true],
-    ["types", "filterType", options.types, true],
-    ["specials", "filterSpecial", options.specials, false],
-    ["rooms", "filterRoom", rooms, false],
-    ["languages", "filterLanguage", options.languages, false],
+    ["streams", "filterStream", orderedStreamNames(state.sessions)],
+    ["types", "filterType", options.types],
+    ["specials", "filterSpecial", options.specials],
+    ["rooms", "filterRoom", rooms],
+    ["languages", "filterLanguage", options.languages],
   ];
-  const more = el("div", { class: "more-panel", id: "more-panel" });
 
-  for (const [name, labelKey, values, primary] of groups) {
+  for (const [name, labelKey, values] of groups) {
     if (!values.length) continue;
-    const group = el("details", { class: `filter-group ${primary ? "filter-primary" : "filter-more"}`, "data-group": name });
-    const summary = el("summary");
-    summary.append(el("span", { "data-i18n": labelKey, text: t(labelKey) }), el("span", { class: "filter-selected", "data-filter-count": name }));
-    const list = el("div", { class: "filter-options" });
-    values.forEach((value, index) => {
-      const id = `filter-${name}-${index}`;
-      const input = el("input", { type: "checkbox", id, value });
-      input.checked = state.filters[name]?.has(value);
-      input.addEventListener("change", () => {
-        if (input.checked) state.filters[name].add(value);
-        else state.filters[name].delete(value);
-        renderProgramme();
-        updateChrome();
-      });
-      const labelText = name === "languages" ? translateSessionLanguage(value, state.language) : value;
-      const text = el("span", { text: labelText });
-      if (name !== "languages") {
-        text.lang = "en";
-        text.setAttribute("translate", "yes");
-      }
-      list.append(el("label", { for: id }, input, text));
-    });
-    group.append(summary, list);
-    if (primary) container.append(group);
-    else more.append(group);
+    container.append(checkboxFilter(name, labelKey, values));
   }
-  if (more.childElementCount) container.append(more);
-  if (wasOpen) {
-    container.classList.add("is-open");
-    container.querySelectorAll(".filter-more").forEach((group) => {
-      group.open = true;
-    });
+  container.append(dateFilter());
+  if (openGroup) {
+    const again = container.querySelector(`[data-group="${openGroup}"]`);
+    if (again) again.open = true;
   }
 }
 
-function setFilterPanel() {
-  const panel = document.querySelector("#filters");
-  const open = panel.classList.toggle("is-open");
-  document.querySelector("#filters-toggle").setAttribute("aria-expanded", open ? "true" : "false");
-  document.querySelector("#more-filters").setAttribute("aria-expanded", open ? "true" : "false");
-  if (open) {
-    panel.querySelectorAll(".filter-more").forEach((group) => {
-      group.open = true;
+function checkboxFilter(name, labelKey, values) {
+  const group = el("details", { class: "filter-group", "data-group": name });
+  const summary = el("summary");
+  summary.append(
+    el("span", { class: "filter-label", "data-i18n": labelKey, text: t(labelKey) }),
+    el("span", { class: "filter-selected", "data-filter-count": name }),
+  );
+  const list = el("div", { class: "filter-options" });
+  values.forEach((value, index) => {
+    const id = `filter-${name}-${index}`;
+    const input = el("input", { type: "checkbox", id, value });
+    input.checked = state.filters[name]?.has(value);
+    input.addEventListener("change", () => {
+      if (input.checked) state.filters[name].add(value);
+      else state.filters[name].delete(value);
+      renderProgramme();
+      updateChrome();
     });
-    if (window.matchMedia("(max-width: 899px)").matches) {
-      panel.querySelectorAll(".filter-primary").forEach((group) => {
-        group.open = true;
-      });
+    const labelText = name === "languages" ? translateSessionLanguage(value, state.language) : value;
+    const text = el("span", { text: labelText });
+    if (name !== "languages") {
+      text.lang = "en";
+      text.setAttribute("translate", "yes");
     }
-  }
+    list.append(el("label", { for: id }, input, text));
+  });
+  group.append(summary, list);
+  return group;
 }
 
-function closeFilterPanel() {
-  const panel = document.querySelector("#filters");
-  if (!panel.classList.contains("is-open")) return;
-  panel.classList.remove("is-open");
-  document.querySelector("#filters-toggle").setAttribute("aria-expanded", "false");
-  document.querySelector("#more-filters").setAttribute("aria-expanded", "false");
+function dateFilter() {
+  const group = el("details", { class: "filter-group", "data-group": "date" });
+  const summary = el("summary");
+  summary.append(
+    el("span", { class: "filter-label", "data-i18n": "date", text: t("date") }),
+    el("span", { class: "filter-selected", "data-filter-count": "date" }),
+  );
+  const list = el("div", { class: "filter-options" });
+  const choices = [["all", t("allDates")], ...programmeDates().map((date) => [date, formatIsoDate(date, state.language, { weekday: "short", day: "numeric", month: "short" })])];
+  choices.forEach(([value, label], index) => {
+    const id = `filter-date-${index}`;
+    const input = el("input", { type: "radio", name: "programme-date", id, value });
+    input.checked = state.date === value;
+    input.addEventListener("change", () => {
+      if (input.checked) selectDate(value);
+    });
+    list.append(el("label", { for: id }, input, el("span", { text: label })));
+  });
+  group.append(summary, list);
+  return group;
 }
 
 function scopeDate() {
@@ -566,16 +564,20 @@ function updateFilterCounts() {
   for (const [name, group] of Object.entries(state.filters)) {
     const node = document.querySelector(`[data-filter-count="${name}"]`);
     if (node) node.textContent = group.size ? ` (${group.size})` : "";
+    document.querySelector(`.filter-group[data-group="${name}"]`)?.classList.toggle("is-active", group.size > 0);
   }
-  const total = activeFilterCount(state.filters);
-  const badge = document.querySelector("#filter-count");
-  badge.hidden = total === 0;
-  badge.textContent = String(total);
-  const moreTotal = state.filters.specials.size + state.filters.rooms.size + state.filters.languages.size;
-  const moreBadge = document.querySelector("#more-count");
-  moreBadge.hidden = moreTotal === 0;
-  moreBadge.textContent = String(moreTotal);
-  document.querySelector("#clear-filters").hidden = total === 0;
+  const dateCount = document.querySelector('[data-filter-count="date"]');
+  const dateActive = state.date !== "all";
+  if (dateCount) {
+    dateCount.textContent = dateActive
+      ? ` · ${formatIsoDate(state.date, state.language, { weekday: "short", day: "numeric", month: "short" })}`
+      : "";
+  }
+  document.querySelector('.filter-group[data-group="date"]')?.classList.toggle("is-active", dateActive);
+  document.querySelectorAll('#filters input[name="programme-date"]').forEach((input) => {
+    input.checked = input.value === state.date;
+  });
+  document.querySelector("#clear-filters").hidden = activeFilterCount(state.filters) === 0 && !dateActive;
 }
 
 function renderActiveFilters() {
@@ -585,7 +587,7 @@ function renderActiveFilters() {
   for (const [name, group] of Object.entries(state.filters)) {
     for (const value of group) chips.push({ name, value });
   }
-  list.hidden = chips.length === 0;
+  list.hidden = chips.length === 0 && state.date === "all";
   for (const chip of chips) {
     list.append(el("li", {},
       el("span", {
@@ -607,6 +609,19 @@ function renderActiveFilters() {
           renderProgramme();
           updateChrome();
         },
+      }),
+    ));
+  }
+  if (state.date !== "all") {
+    const label = formatIsoDate(state.date, state.language, { weekday: "short", day: "numeric", month: "short" });
+    list.append(el("li", {},
+      el("span", { text: label }),
+      el("button", {
+        type: "button",
+        class: "chip-remove",
+        text: "×",
+        "aria-label": t("removeFilter", { value: label }),
+        onClick: () => selectDate("all"),
       }),
     ));
   }

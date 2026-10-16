@@ -1,90 +1,15 @@
-@media (min-width: 900px) {
-  #filters-toggle { display: none; }
+@media (min-width: 640px) {
+  .filters { grid-template-columns: 1fr 1fr; }
+}
 
-  .filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 0.5rem;
-    background: transparent;
-    border: 0;
-    padding: 0;
-  }
-
-  .more-panel { display: none; flex: 1 1 100%; }
-
-  .filters.is-open .more-panel {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-    gap: 0.75rem 1.1rem;
-    background: var(--white);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 0.75rem 0.9rem 0.9rem;
-  }
-
-  .filter-primary { position: relative; }
-
-  .filter-primary > summary {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    background: var(--white);
-    border: 2px solid var(--blue);
-    color: var(--blue);
-    border-radius: 999px;
-    padding: 0.45rem 0.9rem;
-    font-weight: 700;
-  }
-
-  .filter-primary[open] > summary {
-    border-color: var(--red);
-    color: var(--red);
-  }
-
-  .filter-primary .filter-options {
-    position: absolute;
-    z-index: 30;
-    top: calc(100% + 0.35rem);
-    left: 0;
-    min-width: min(18rem, 70vw);
-    background: var(--white);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    box-shadow: var(--shadow);
-    padding: 0.35rem;
-  }
-
-  .filter-primary:not([open]) .filter-options { display: none; }
-
-  .filter-more > summary {
-    font-weight: 700;
-    color: var(--blue);
-    pointer-events: none;
-    margin-bottom: 0.25rem;
-  }
+@media (min-width: 960px) {
+  .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   .leadership.has-both { grid-template-columns: 1fr 1fr; align-items: start; }
 }
 
 @media (max-width: 899px) {
-  #more-filters { display: none; }
-
-  .filters.is-open {
-    display: grid;
-    gap: 0.85rem;
-    background: var(--white);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 0.8rem 0.9rem 1rem;
-  }
-
-  .more-panel { display: grid; gap: 0.85rem; }
-
-  .filter-group .filter-options { position: static; }
-
   .programme-toolbar { align-items: stretch; flex-direction: column; }
-
   .view-toggle { align-self: flex-start; }
 }
 
