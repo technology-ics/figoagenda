@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scientific programme · FIGO Montréal 2027</title>
+  <meta name="description" content="Scientific programme for the XXVI FIGO World Congress of Gynecology and Obstetrics, 31 October to 5 November 2027, Montréal, Canada.">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="icon" href="assets/logos/figo-wc27-logo.png">
+</head>
+<body>
+  <a class="skip-link" href="#programme" data-i18n="skip">Skip to programme</a>
+  <div id="preview" class="preview" hidden>
+    <p data-i18n="preview">Programme preview – test data</p>
+  </div>
+  <header class="site-header wrap">
+    <div class="brand">
+      <img src="assets/logos/figo-wc27-logo.png" width="337" height="174" alt="FIGO XXVI World Congress of Gynecology and Obstetrics">
+      <div class="brand-text">
+        <p class="eyebrow" data-i18n="congressName">XXVI FIGO World Congress of Gynecology and Obstetrics</p>
+        <h1 data-i18n="programmeTitle">Scientific programme</h1>
+        <p class="congress-meta">
+          <span data-i18n="congressDates">31 October – 5 November 2027</span>
+          ·
+          <span data-i18n="location">Montréal, Canada</span>
+        </p>
+      </div>
+    </div>
+    <div class="header-tools">
+      <div class="lang-switch" role="group" data-i18n-aria="languageGroup" aria-label="Language">
+        <button type="button" data-lang="en-GB" lang="en-GB" aria-pressed="true">English</button>
+        <button type="button" data-lang="fr" lang="fr">Français</button>
+        <button type="button" data-lang="es" lang="es">Español</button>
+      </div>
+      <button type="button" id="agenda-toggle" class="agenda-toggle" aria-pressed="false">
+        <span data-i18n="personalAgenda">Personal agenda</span>
+        <span id="agenda-count" class="count-badge" hidden>0</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="discovery" aria-labelledby="discovery-heading">
+    <h2 id="discovery-heading" class="visually-hidden" data-i18n="searchHeading">Search and filters</h2>
+    <form id="search-form" role="search">
+      <label for="search" data-i18n="searchLabel">Search the programme</label>
+      <div class="search-row">
+        <input id="search" name="search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Session, speaker, topic or room" autocomplete="off">
+        <button type="button" id="search-clear" class="text-button" hidden data-i18n="clearSearch">Clear search</button>
+        <button type="button" id="refresh" class="secondary-button" data-i18n="refresh">Refresh programme</button>
+      </div>
+    </form>
+    <div class="filter-bar">
+      <button type="button" id="filters-toggle" class="secondary-button" aria-expanded="false" aria-controls="filters">
+        <span data-i18n="filters">Filters</span>
+        <span id="filter-count" class="count-badge" hidden>0</span>
+      </button>
+      <button type="button" id="clear-filters" class="text-button" hidden data-i18n="clearFilters">Clear filters</button>
+    </div>
+    <div id="filters" class="filters"></div>
+    <ul id="active-filters" class="active-filters" hidden></ul>
+  </section>
+
+  <div id="programme-toolbar" class="programme-toolbar">
+    <div class="date-nav">
+      <button type="button" id="prev-day" class="icon-button" data-i18n-aria="previousDay" aria-label="Previous day">‹</button>
+      <div id="dates" class="dates" role="group" data-i18n-aria="dateGroup" aria-label="Programme dates"></div>
+      <button type="button" id="next-day" class="icon-button" data-i18n-aria="nextDay" aria-label="Next day">›</button>
+    </div>
+    <div class="view-toggle" role="group" data-i18n-aria="viewGroup" aria-label="Programme view">
+      <button type="button" id="view-calendar" aria-pressed="true" data-i18n="calendarView">Calendar view</button>
+      <button type="button" id="view-list" aria-pressed="false" data-i18n="listView">List view</button>
+    </div>
+  </div>
+
+  <p id="status" class="status" role="status" data-i18n="loading">Loading programme…</p>
+  <div id="cache-offer" class="cache-offer" hidden></div>
+  <p id="scroll-hint" class="scroll-hint" data-i18n="scrollHint">Scroll sideways to see every room. Times stay visible while you move across the timetable.</p>
+
+  <section id="legend" class="legend" aria-labelledby="legend-heading" hidden>
+    <h2 id="legend-heading" data-i18n="legend">Stream legend</h2>
+    <ul id="legend-list"></ul>
+  </section>
+
+  <main id="programme" tabindex="-1">
+    <p class="empty-state" data-i18n="loading">Loading programme…</p>
+  </main>
+
+  <dialog id="session-dialog" class="session-dialog" aria-labelledby="dialog-title"></dialog>
+
+  <footer class="site-footer">
+    <p data-i18n="footerTime">Session times are Montréal local time.</p>
+    <p data-i18n="footerSave">Saved sessions stay in this browser only. They are not synchronised between devices.</p>
+  </footer>
+  <noscript>
+    <p class="empty-state wrap">This programme needs JavaScript to load the published schedule.</p>
+  </noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
