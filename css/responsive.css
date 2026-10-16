@@ -1,23 +1,7 @@
-@media (min-width: 900px) {
-  .filters { display: flex; }
-  #filters-toggle { display: none; }
-}
-
 @media (max-width: 899px) {
-  .filters.is-open { display: flex; }
-
-  .filter-options {
-    position: static;
-    box-shadow: none;
-    margin-top: 0.35rem;
-    max-height: 14rem;
-  }
-
   .programme-toolbar { align-items: stretch; flex-direction: column; }
 
   .view-toggle { align-self: flex-start; }
-
-  .header-tools { align-items: flex-start; }
 }
 
 @media (max-width: 720px) {

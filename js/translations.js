@@ -39,8 +39,8 @@ export const translations = {
     emptyProgramme: "The published programme does not contain any sessions yet.",
     noResults: "No sessions match your search or filters.",
     noResultsHint: "Clear the search or filters to see the programme again.",
-    sessionCountOne: "1 session",
-    sessionCountMany: "{count} sessions",
+    sessionCountOne: "1 session found",
+    sessionCountMany: "{count} sessions found",
     allDates: "All dates",
     date: "Date",
     filterStream: "Stream",
@@ -105,6 +105,9 @@ export const translations = {
     timeCorner: "Time",
     saved: "Saved",
     openSession: "Open session",
+    presentations: "Presentations",
+    otherAgenda: "Other agenda details",
+    translateNotice: "Session titles and descriptions stay in the original language. Use your browser’s translate feature for the full page. Automated translation can be inaccurate.",
   },
   fr: {
     documentTitle: "Programme scientifique · FIGO Montréal 2027",
@@ -144,8 +147,8 @@ export const translations = {
     emptyProgramme: "Le programme publié ne contient encore aucune séance.",
     noResults: "Aucune séance ne correspond à votre recherche ou à vos filtres.",
     noResultsHint: "Effacez la recherche ou les filtres pour revoir le programme.",
-    sessionCountOne: "1 séance",
-    sessionCountMany: "{count} séances",
+    sessionCountOne: "1 séance trouvée",
+    sessionCountMany: "{count} séances trouvées",
     allDates: "Toutes les dates",
     date: "Date",
     filterStream: "Axe",
@@ -210,6 +213,9 @@ export const translations = {
     timeCorner: "Heure",
     saved: "Enregistrée",
     openSession: "Ouvrir la séance",
+    presentations: "Présentations",
+    otherAgenda: "Autres éléments de l’ordre du jour",
+    translateNotice: "Les titres et descriptions restent dans la langue d’origine. Utilisez la traduction de votre navigateur pour toute la page. Une traduction automatique peut être inexacte.",
   },
   es: {
     documentTitle: "Programa científico · FIGO Montréal 2027",
@@ -249,8 +255,8 @@ export const translations = {
     emptyProgramme: "El programa publicado todavía no contiene sesiones.",
     noResults: "Ninguna sesión coincide con su búsqueda o sus filtros.",
     noResultsHint: "Borre la búsqueda o los filtros para volver a ver el programa.",
-    sessionCountOne: "1 sesión",
-    sessionCountMany: "{count} sesiones",
+    sessionCountOne: "1 sesión encontrada",
+    sessionCountMany: "{count} sesiones encontradas",
     allDates: "Todas las fechas",
     date: "Fecha",
     filterStream: "Eje",
@@ -315,6 +321,9 @@ export const translations = {
     timeCorner: "Hora",
     saved: "Guardada",
     openSession: "Abrir la sesión",
+    presentations: "Presentaciones",
+    otherAgenda: "Otros detalles del orden del día",
+    translateNotice: "Los títulos y las descripciones permanecen en el idioma original. Use la traducción de su navegador para toda la página. La traducción automática puede ser inexacta.",
   },
 };
 
@@ -344,6 +353,14 @@ export function translate(language, key, vars) {
 export function translateRole(role, language) {
   const key = ROLE_KEYS[String(role || "").trim().toLowerCase()];
   return key ? translate(language, key) : String(role || "").trim();
+}
+
+/** BCP 47 language of scientific source text, so a browser can translate it. */
+export function sourceLanguage(value) {
+  const name = String(value || "").trim().toLowerCase();
+  if (name === "french" || name === "français" || name === "francais") return "fr";
+  if (name === "spanish" || name === "español" || name === "espanol") return "es";
+  return "en";
 }
 
 export function translateSessionLanguage(value, language) {

@@ -6,7 +6,7 @@ import { renderCalendar } from "./agenda-calendar.js";
 import { renderList } from "./agenda-list.js";
 import { findConflicts, loadSavedIds, renderPersonalAgenda, saveSavedIds } from "./personal-agenda.js";
 import { renderSessionDialog, sessionPageUrl } from "./session-details.js";
-import { translate } from "./translations.js";
+import { translate, translateSessionLanguage } from "./translations.js";
 import { el, formatIsoDate, readStorage, writeStorage } from "./utils.js";
 
 const state = {
@@ -14,7 +14,7 @@ const state = {
   view: initialView(),
   mode: "programme",
   query: "",
-  date: "",
+  date: "all",
   filters: createFilterState(),
   sessions: [],
   savedIds: loadSavedIds(),
@@ -67,8 +67,6 @@ function bindEvents() {
   });
   document.querySelector("#clear-filters").addEventListener("click", () => {
     clearFilters(state.filters);
-    state.query = "";
-    searchInput().value = "";
     renderFilterOptions();
     renderProgramme();
     updateChrome();
@@ -97,10 +95,11 @@ function bindEvents() {
   });
   dialog().addEventListener("keydown", trapFocus);
   document.addEventListener("click", (event) => {
-    if (event.target.closest(".filter-group")) return;
-    document.querySelectorAll(".filter-group[open]").forEach((group) => {
-      group.open = false;
-    });
+    if (event.target.closest(".discovery")) return;
+    const panel = document.querySelector("#filters");
+    if (!panel.classList.contains("is-open")) return;
+    panel.classList.remove("is-open");
+    document.querySelector("#filters-toggle").setAttribute("aria-expanded", "false");
   });
 }
 
@@ -129,9 +128,7 @@ function applyCsv(csv, { fromCache, savedAt }) {
   state.usingCache = Boolean(fromCache);
   state.cacheSavedAt = savedAt || "";
   const dates = programmeDates();
-  if (!state.date || (state.date !== "all" && !dates.includes(state.date))) {
-    state.date = dates[0] || "all";
-  }
+  if (state.date !== "all" && !dates.includes(state.date)) state.date = "all";
   renderFilterOptions();
   renderDates();
   renderProgramme();
@@ -192,14 +189,15 @@ function renderProgramme() {
 function renderLegend() {
   const section = document.querySelector("#legend");
   const list = document.querySelector("#legend-list");
+  const show = state.mode === "programme" && state.view === "calendar";
   const names = orderedStreamNames(state.sessions);
   list.replaceChildren();
-  section.hidden = names.length === 0;
+  section.hidden = !show || names.length === 0;
   for (const name of names) {
     const style = streamStyle(name);
-    const swatch = el("span", { class: "swatch", text: style.code });
+    const swatch = el("span", { class: "swatch", text: style.code, translate: "no" });
     swatch.style.backgroundColor = style.colour;
-    list.append(el("li", {}, swatch, el("span", { text: name })));
+    list.append(el("li", {}, swatch, el("span", { text: name, lang: "en", translate: "yes" })));
   }
 }
 
@@ -227,13 +225,11 @@ function renderDates() {
 
 function renderFilterOptions() {
   const container = document.querySelector("#filters");
-  const openGroups = new Set([...container.querySelectorAll("details[open]")].map((item) => item.dataset.group));
   container.replaceChildren();
   const options = collectFilterOptions(state.sessions, state.language);
   const rooms = [...new Set(state.sessions.map((session) => session.room).filter(Boolean))].sort((a, b) => roomRank(a) - roomRank(b) || a.localeCompare(b, state.language));
   const groups = [
     ["streams", "filterStream", orderedStreamNames(state.sessions)],
-    ["subtopics", "filterSubtopic", options.subtopics],
     ["types", "filterType", options.types],
     ["specials", "filterSpecial", options.specials],
     ["rooms", "filterRoom", rooms],
@@ -242,33 +238,43 @@ function renderFilterOptions() {
 
   for (const [name, labelKey, values] of groups) {
     if (!values.length) continue;
-    const details = el("details", { class: "filter-group", "data-group": name });
-    if (openGroups.has(name)) details.open = true;
-    const summary = el("summary");
-    summary.append(el("span", { "data-i18n": labelKey, text: t(labelKey) }), el("span", { class: "filter-selected", "data-filter-count": name }));
+    const group = el("fieldset", { class: "filter-group", "data-group": name });
+    const legend = el("legend");
+    legend.append(el("span", { "data-i18n": labelKey, text: t(labelKey) }), el("span", { class: "filter-selected", "data-filter-count": name }));
     const list = el("div", { class: "filter-options" });
     values.forEach((value, index) => {
       const id = `filter-${name}-${index}`;
       const input = el("input", { type: "checkbox", id, value });
-      input.checked = state.filters[name].has(value);
+      input.checked = state.filters[name]?.has(value);
       input.addEventListener("change", () => {
         if (input.checked) state.filters[name].add(value);
         else state.filters[name].delete(value);
         renderProgramme();
         updateChrome();
       });
-      list.append(el("label", { for: id }, input, el("span", { text: value })));
+      const labelText = name === "languages" ? translateSessionLanguage(value, state.language) : value;
+      const text = el("span", { text: labelText });
+      if (name !== "languages") {
+        text.lang = "en";
+        text.setAttribute("translate", "yes");
+      }
+      list.append(el("label", { for: id }, input, text));
     });
-    details.append(summary, list);
-    container.append(details);
+    group.append(legend, list);
+    container.append(group);
   }
+}
+
+function scopeDate() {
+  if (state.view === "calendar" && state.date === "all") return programmeDates()[0] || "";
+  return state.date;
 }
 
 function visibleSessions() {
   return state.sessions.filter((session) => sessionMatches(session, {
     query: state.query,
     filters: state.filters,
-    date: state.date,
+    date: state.view === "calendar" ? scopeDate() : state.date,
   }));
 }
 
@@ -285,8 +291,9 @@ function selectDate(date) {
 }
 
 function shiftDate(step) {
-  const dates = ["all", ...programmeDates()];
-  const index = Math.max(0, dates.indexOf(state.date));
+  const dates = state.view === "calendar" ? programmeDates() : ["all", ...programmeDates()];
+  const current = state.view === "calendar" ? scopeDate() : state.date;
+  const index = dates.indexOf(current);
   const next = dates[index + step];
   if (next) selectDate(next);
 }
@@ -305,6 +312,7 @@ function setLanguage(language) {
   writeStorage(CONFIG.storageKeys.language, language);
   applyTranslations();
   renderDates();
+  renderFilterOptions();
   renderProgramme();
   const current = dialog();
   if (current.open && state.selectedId) refreshDialog(state.selectedId);
@@ -321,7 +329,11 @@ function openSession(id, { fromLink = false } = {}) {
   state.missingSession = false;
   state.selectedId = id;
   lastFocus = document.activeElement;
-  if (state.mode !== "agenda" && state.date !== "all" && session.date && state.date !== session.date) {
+  if (state.mode !== "agenda" && state.view === "calendar" && session.date && scopeDate() !== session.date) {
+    state.date = session.date;
+    updateDateSelection();
+    renderProgramme();
+  } else if (state.mode !== "agenda" && state.date !== "all" && session.date && state.date !== session.date) {
     state.date = session.date;
     updateDateSelection();
     renderProgramme();
@@ -458,11 +470,13 @@ function updateCacheOffer() {
 }
 
 function updateDateSelection() {
+  const current = state.view === "calendar" && state.mode === "programme" ? scopeDate() : state.date;
   document.querySelectorAll("#dates button").forEach((button) => {
-    button.setAttribute("aria-pressed", button.dataset.date === state.date ? "true" : "false");
+    button.setAttribute("aria-pressed", button.dataset.date === current ? "true" : "false");
+    if (button.dataset.date === "all") button.hidden = state.view === "calendar" && state.mode === "programme";
   });
-  const dates = ["all", ...programmeDates()];
-  const index = dates.indexOf(state.date);
+  const dates = state.view === "calendar" && state.mode === "programme" ? programmeDates() : ["all", ...programmeDates()];
+  const index = dates.indexOf(current);
   document.querySelector("#prev-day").disabled = index <= 0;
   document.querySelector("#next-day").disabled = index === -1 || index >= dates.length - 1;
 }
@@ -508,7 +522,11 @@ function renderActiveFilters() {
   list.hidden = chips.length === 0;
   for (const chip of chips) {
     list.append(el("li", {},
-      el("span", { text: chip.value }),
+      el("span", {
+        text: chip.name === "languages" ? translateSessionLanguage(chip.value, state.language) : chip.value,
+        lang: chip.name === "languages" ? undefined : "en",
+        translate: chip.name === "languages" ? undefined : "yes",
+      }),
       el("button", {
         type: "button",
         class: "chip-remove",
@@ -612,5 +630,5 @@ function initialLanguage() {
 function initialView() {
   const saved = readStorage(CONFIG.storageKeys.view, "");
   if (saved === "calendar" || saved === "list") return saved;
-  return window.matchMedia("(min-width: 900px)").matches ? "calendar" : "list";
+  return "list";
 }

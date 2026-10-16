@@ -1,4 +1,4 @@
-import { localContent, translateSessionLanguage } from "./translations.js";
+import { localContent, sourceLanguage, translateSessionLanguage } from "./translations.js";
 import { el, formatIsoDate } from "./utils.js";
 import { streamStyle } from "./data-model.js";
 
@@ -26,7 +26,7 @@ function renderGroup(date, sessions, options) {
   const heading = date
     ? formatIsoDate(date, language, { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : t("timeUnavailable");
-  section.append(el("h2", { text: heading }));
+  section.append(el("h2", { class: "day-heading", text: heading }));
   const list = el("div", { class: "session-list" });
   for (const session of sessions) list.append(createSessionCard(session, options));
   section.append(list);
@@ -38,9 +38,11 @@ export function createSessionCard(session, options) {
   const saved = options.saved ?? options.savedIds?.includes(session.id);
   const title = localContent(session.title, language) || session.id;
   const selected = session.id === selectedId;
-  const article = el("article", { class: `session-card${selected ? " is-selected" : ""}`, "data-session-id": session.id });
-  const style = streamStyle(session.stream);
-  article.style.borderLeftColor = style.colour;
+  const article = el("article", {
+    class: `session-card${selected ? " is-selected" : ""}`,
+    "data-session-id": session.id,
+  });
+  article.style.borderLeftColor = streamStyle(session.stream).colour;
 
   const time = el("div", { class: "card-time" });
   if (session.start && session.end) {
@@ -48,32 +50,45 @@ export function createSessionCard(session, options) {
   } else {
     time.append(el("p", { class: "card-hours", text: t("timeUnavailable") }));
   }
-  if (session.room) time.append(el("p", { class: "card-room", text: session.room }));
+  if (session.room) {
+    time.append(el("p", { class: "card-room", text: session.room, lang: "en", translate: "yes" }));
+  }
   if (options.showDate && session.date) {
     time.append(el("p", { class: "card-day", text: formatIsoDate(session.date, language, { weekday: "short", day: "numeric", month: "short" }) }));
   }
 
   const body = el("div", { class: "card-body" });
+  const dateLabel = session.date
+    ? formatIsoDate(session.date, language, { weekday: "long", day: "numeric", month: "long" })
+    : "";
   const button = el("button", {
     type: "button",
     class: "card-title",
     "data-session-id": session.id,
-    "aria-label": [title, session.start && session.end ? `${session.start}–${session.end}` : "", session.room, session.stream].filter(Boolean).join(". "),
+    "aria-label": [title, dateLabel, session.start && session.end ? `${session.start}–${session.end}` : "", session.room, session.stream].filter(Boolean).join(". "),
     onClick: () => onSelect(session.id),
   });
-  button.append(el("span", { text: title }));
+  button.append(el("span", {
+    text: title,
+    lang: sourceLanguage(session.language),
+    translate: "yes",
+  }));
   if (selected) button.setAttribute("aria-current", "true");
   body.append(button);
 
   if (session.hostOrganisation) {
-    body.append(el("p", { class: "card-host" }, el("span", { class: "meta-label", text: t("hostOrganisation") }), document.createTextNode(` ${session.hostOrganisation}`)));
+    body.append(el("p", { class: "card-host" },
+      el("span", { class: "meta-label", text: t("hostOrganisation") }),
+      document.createTextNode(" "),
+      el("span", { text: session.hostOrganisation, lang: "en", translate: "yes" }),
+    ));
   }
 
   const tags = el("ul", { class: "tags" });
   if (session.stream) tags.append(streamTag(session.stream));
-  if (session.type) tags.append(tag(session.type));
-  if (session.language) tags.append(tag(translateSessionLanguage(session.language, language)));
-  for (const topic of session.specialTopics) tags.append(tag(topic, "tag-special"));
+  if (session.type) tags.append(sourceTag(session.type));
+  for (const topic of session.specialTopics) tags.append(sourceTag(topic, "tag-special"));
+  if (session.language) tags.append(tag(translateSessionLanguage(session.language, language), "tag-language"));
   if (saved) tags.append(tag(t("saved"), "tag-saved"));
   if (tags.childElementCount) body.append(tags);
 
@@ -83,9 +98,17 @@ export function createSessionCard(session, options) {
 
 export function streamTag(stream) {
   const style = streamStyle(stream);
-  const item = el("li", { class: "tag tag-stream", text: `${style.code} · ${stream}` });
+  const item = el("li", { class: "tag tag-stream" });
   item.style.backgroundColor = style.colour;
+  item.append(
+    el("span", { class: "tag-code", text: style.code, translate: "no" }),
+    el("span", { text: stream, lang: "en", translate: "yes" }),
+  );
   return item;
+}
+
+function sourceTag(text, className = "") {
+  return el("li", { class: `tag ${className}`.trim(), text, lang: "en", translate: "yes" });
 }
 
 function tag(text, className = "") {

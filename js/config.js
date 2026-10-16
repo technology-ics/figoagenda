@@ -26,7 +26,7 @@ export const CONFIG = {
 
   storageKeys: {
     language: "figo2027.language",
-    view: "figo2027.view",
+    view: "figo2027.viewChoice",
     agenda: "figo2027.agenda",
     cache: "figo2027.csvCache",
   },

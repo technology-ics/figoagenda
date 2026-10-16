@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en-GB">
 <head>
   <meta charset="utf-8">
@@ -29,9 +29,9 @@
     </div>
     <div class="header-tools">
       <div class="lang-switch" role="group" data-i18n-aria="languageGroup" aria-label="Language">
-        <button type="button" data-lang="en-GB" lang="en-GB" aria-pressed="true">English</button>
-        <button type="button" data-lang="fr" lang="fr">Français</button>
-        <button type="button" data-lang="es" lang="es">Español</button>
+        <button type="button" data-lang="en-GB" lang="en-GB" translate="no" aria-pressed="true">English</button>
+        <button type="button" data-lang="fr" lang="fr" translate="no">Français</button>
+        <button type="button" data-lang="es" lang="es" translate="no">Español</button>
       </div>
       <button type="button" id="agenda-toggle" class="agenda-toggle" aria-pressed="false">
         <span data-i18n="personalAgenda">Personal agenda</span>
@@ -47,16 +47,17 @@
       <div class="search-row">
         <input id="search" name="search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Session, speaker, topic or room" autocomplete="off">
         <button type="button" id="search-clear" class="text-button" hidden data-i18n="clearSearch">Clear search</button>
-        <button type="button" id="refresh" class="secondary-button" data-i18n="refresh">Refresh programme</button>
+        <button type="button" id="filters-toggle" class="secondary-button" aria-expanded="false" aria-controls="filters">
+          <span data-i18n="filters">Filters</span>
+          <span id="filter-count" class="count-badge" hidden>0</span>
+        </button>
       </div>
     </form>
     <div class="filter-bar">
-      <button type="button" id="filters-toggle" class="secondary-button" aria-expanded="false" aria-controls="filters">
-        <span data-i18n="filters">Filters</span>
-        <span id="filter-count" class="count-badge" hidden>0</span>
-      </button>
       <button type="button" id="clear-filters" class="text-button" hidden data-i18n="clearFilters">Clear filters</button>
+      <button type="button" id="refresh" class="text-button" data-i18n="refresh">Refresh programme</button>
     </div>
+    <p id="translate-note" class="translate-note" data-i18n="translateNotice">Session titles and descriptions stay in the original language. Use your browser’s translate feature for the full page. Automated translation can be inaccurate.</p>
     <div id="filters" class="filters"></div>
     <ul id="active-filters" class="active-filters" hidden></ul>
   </section>
@@ -68,8 +69,8 @@
       <button type="button" id="next-day" class="icon-button" data-i18n-aria="nextDay" aria-label="Next day">›</button>
     </div>
     <div class="view-toggle" role="group" data-i18n-aria="viewGroup" aria-label="Programme view">
-      <button type="button" id="view-calendar" aria-pressed="true" data-i18n="calendarView">Calendar view</button>
-      <button type="button" id="view-list" aria-pressed="false" data-i18n="listView">List view</button>
+      <button type="button" id="view-list" aria-pressed="true" data-i18n="listView">List view</button>
+      <button type="button" id="view-calendar" aria-pressed="false" data-i18n="calendarView">Calendar view</button>
     </div>
   </div>
 

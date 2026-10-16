@@ -1,46 +1,53 @@
-import { localContent, translateRole, translateSessionLanguage } from "./translations.js";
+import { localContent, sourceLanguage, translateRole, translateSessionLanguage } from "./translations.js";
 import { el, fold, formatIsoDate } from "./utils.js";
 import { streamStyle } from "./data-model.js";
+import { streamTag } from "./agenda-list.js";
 import { canExport, downloadIcs, googleCalendarUrl } from "./calendar-export.js";
 
 export function renderSessionDialog(dialog, session, options) {
   const { language, t, saved, onToggleSave, pageUrl } = options;
   const title = localContent(session.title, language) || session.id;
-  const style = streamStyle(session.stream);
+  const lang = sourceLanguage(session.language);
   dialog.replaceChildren();
 
   const header = el("div", { class: "dialog-header" });
   header.append(el("button", {
     type: "button",
-    class: "dialog-close",
+    class: "dialog-close text-button",
     text: t("close"),
     "aria-label": t("closeSession"),
     onClick: () => dialog.close(),
   }));
-  const titleRow = el("div", { class: "dialog-title-row" });
-  if (session.stream) {
-    const code = el("span", { class: "cal-code code-inline", text: style.code });
-    code.style.backgroundColor = style.colour;
-    titleRow.append(code);
-  }
-  titleRow.append(el("h2", { id: "dialog-title", text: title }));
-  header.append(titleRow);
+  header.append(el("h2", { id: "dialog-title", lang, translate: "yes", text: title }));
   dialog.append(header);
 
   const body = el("div", { class: "dialog-body" });
+  body.append(whenLine(session, language));
+  if (session.hostOrganisation) {
+    body.append(el("p", { class: "host-line" },
+      el("span", { class: "meta-label", text: t("hostOrganisation") }),
+      document.createTextNode(" "),
+      el("span", { text: session.hostOrganisation, lang: "en", translate: "yes" }),
+    ));
+  }
+  const tags = detailTags(session, language, t);
+  if (tags.childElementCount) body.append(tags);
+  if (session.formatNotes) body.append(el("p", { class: "hint", lang: "en", translate: "yes", text: session.formatNotes }));
   body.append(actionRow(session, { t, saved, onToggleSave, pageUrl }));
-  body.append(metaList(session, language, t));
-  if (session.formatNotes) body.append(el("h3", { text: t("formatNotes") }), el("p", { text: session.formatNotes }));
 
   const description = localContent(session.description, language);
   if (description) {
     body.append(el("h3", { text: t("description") }));
     for (const paragraph of description.split(/\n+/)) {
-      if (paragraph.trim()) body.append(el("p", { text: paragraph.trim() }));
+      if (paragraph.trim()) body.append(el("p", { lang, translate: "yes", text: paragraph.trim() }));
     }
   }
+
+  const presentations = session.agenda.filter((item) => item.kind === "presentation");
+  const other = session.agenda.filter((item) => item.kind !== "presentation");
+  if (presentations.length) body.append(el("h3", { text: t("presentations") }), agendaList(presentations, language, lang));
   if (session.people.length) body.append(el("h3", { text: t("sessionRoles") }), personList(session.people, language));
-  if (session.agenda.length) body.append(el("h3", { text: t("agenda") }), agendaList(session, language));
+  if (other.length) body.append(el("h3", { text: t("otherAgenda") }), agendaList(other, language, lang));
   dialog.append(body);
 }
 
@@ -49,6 +56,35 @@ export function sessionPageUrl(sessionId) {
   url.searchParams.set("session", sessionId);
   url.hash = "";
   return url.toString();
+}
+
+function whenLine(session, language) {
+  const line = el("p", { class: "when-line" });
+  const parts = [];
+  if (session.date) {
+    parts.push(el("span", {
+      text: formatIsoDate(session.date, language, { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    }));
+  }
+  if (session.start && session.end) parts.push(el("span", { text: `${session.start}–${session.end}` }));
+  if (session.room) parts.push(el("span", { text: session.room, lang: "en", translate: "yes" }));
+  parts.forEach((part, index) => {
+    if (index) line.append(document.createTextNode(" · "));
+    line.append(part);
+  });
+  return line;
+}
+
+function detailTags(session, language, t) {
+  const tags = el("ul", { class: "tags detail-tags" });
+  if (session.stream) tags.append(streamTag(session.stream));
+  for (const topic of session.specialTopics) tags.append(el("li", { class: "tag tag-special", text: topic, lang: "en", translate: "yes" }));
+  if (session.type) tags.append(el("li", { class: "tag", text: session.type, lang: "en", translate: "yes" }));
+  if (session.format) tags.append(el("li", { class: "tag", text: session.format, lang: "en", translate: "yes" }));
+  if (session.subtopic) tags.append(el("li", { class: "tag tag-subtopic", text: session.subtopic, lang: "en", translate: "yes" }));
+  if (session.language) tags.append(el("li", { class: "tag tag-language", text: translateSessionLanguage(session.language, language) }));
+  if (session.duration) tags.append(el("li", { class: "tag", text: formatDuration(session.duration, t) }));
+  return tags;
 }
 
 function actionRow(session, { t, saved, onToggleSave, pageUrl }) {
@@ -61,20 +97,22 @@ function actionRow(session, { t, saved, onToggleSave, pageUrl }) {
   }));
 
   if (canExport(session)) {
-    row.append(el("button", {
-      type: "button",
-      class: "secondary-button",
-      text: t("downloadIcs"),
-      onClick: () => downloadIcs(session, pageUrl),
-    }));
-    const calendarLink = el("a", {
-      class: "secondary-button link-button",
+    const menu = el("details", { class: "calendar-menu" });
+    const summary = el("summary", { class: "secondary-button", text: t("addCalendar") });
+    const choices = el("div", { class: "calendar-choices" });
+    choices.append(el("a", {
       href: googleCalendarUrl(session, pageUrl),
       target: "_blank",
       rel: "noopener noreferrer",
       text: t("googleCalendar"),
-    });
-    row.append(calendarLink);
+    }));
+    choices.append(el("button", {
+      type: "button",
+      text: t("downloadIcs"),
+      onClick: () => downloadIcs(session, pageUrl),
+    }));
+    menu.append(summary, choices);
+    row.append(menu);
   } else {
     row.append(el("p", { class: "hint", text: t("noTimeForCalendar") }));
   }
@@ -104,27 +142,6 @@ async function copyLink(pageUrl, button, t) {
   }
 }
 
-function metaList(session, language, t) {
-  const rows = [];
-  if (session.date) {
-    rows.push([t("date"), formatIsoDate(session.date, language, { weekday: "long", day: "numeric", month: "long", year: "numeric" })]);
-  }
-  if (session.start && session.end) rows.push([t("montrealTime"), `${session.start}–${session.end}`]);
-  if (session.duration) rows.push([t("duration"), formatDuration(session.duration, t)]);
-  if (session.room) rows.push([t("room"), session.room]);
-  if (session.hostOrganisation) rows.push([t("hostOrganisation"), session.hostOrganisation]);
-  if (session.type) rows.push([t("sessionType"), session.type]);
-  if (session.format) rows.push([t("sessionFormat"), session.format]);
-  if (session.stream) rows.push([t("stream"), session.stream]);
-  if (session.subtopic) rows.push([t("subtopic"), session.subtopic]);
-  if (session.specialTopics.length) rows.push([t("specialTopics"), session.specialTopics.join(" · ")]);
-  if (session.language) rows.push([t("sessionLanguage"), translateSessionLanguage(session.language, language)]);
-
-  const list = el("dl", { class: "meta-list" });
-  for (const [label, value] of rows) list.append(el("div", {}, el("dt", { text: label }), el("dd", { text: value })));
-  return list;
-}
-
 function personList(people, language) {
   return el("ul", { class: "people" }, ...people.map((person) => personItem(person, language)));
 }
@@ -132,21 +149,20 @@ function personList(people, language) {
 function personItem(person, language) {
   const affiliation = formatAffiliation(person);
   return el("li", { class: "person" },
-    el("span", { class: "person-name", text: person.name }),
+    el("span", { class: "person-name notranslate", text: person.name, translate: "no" }),
     person.role ? el("span", { class: "person-role", text: translateRole(person.role, language) }) : null,
-    affiliation ? el("span", { class: "person-aff", text: affiliation }) : null,
+    affiliation ? el("span", { class: "person-aff", text: affiliation, lang: "en", translate: "yes" }) : null,
   );
 }
 
-function agendaList(session, language) {
+function agendaList(items, language, contentLang) {
   const list = el("ol", { class: "agenda" });
-  list.style.borderColor = streamStyle(session.stream).colour;
-  for (const item of session.agenda) {
+  for (const item of items) {
     const title = localContent(item.title, language);
     list.append(el("li", { class: "agenda-item-row" },
       item.start && item.end ? el("p", { class: "agenda-time", text: `${item.start}–${item.end}` }) : null,
-      item.type && fold(item.type) !== fold(title) ? el("p", { class: "agenda-type", text: item.type }) : null,
-      title ? el("p", { class: "agenda-title", text: title }) : null,
+      item.type && fold(item.type) !== fold(title) ? el("p", { class: "agenda-type", text: item.type, lang: "en", translate: "yes" }) : null,
+      title ? el("p", { class: "agenda-title", text: title, lang: contentLang, translate: "yes" }) : null,
       item.people?.length ? personList(item.people, language) : null,
     ));
   }

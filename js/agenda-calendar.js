@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { localContent } from "./translations.js";
+import { localContent, sourceLanguage } from "./translations.js";
 import { el, formatIsoDate } from "./utils.js";
 import { streamStyle } from "./data-model.js";
 
@@ -66,7 +66,7 @@ function buildDay(sessions, heading, { language, t, selectedId, onSelect }) {
   grid.append(corner);
 
   rooms.forEach((room, index) => {
-    const name = el("div", { class: "cal-room-name", text: room.name });
+    const name = el("div", { class: "cal-room-name", text: room.name, lang: "en", translate: "yes" });
     name.style.gridColumn = String(index + 2);
     name.style.gridRow = "1";
     grid.append(name);
@@ -148,7 +148,12 @@ function sessionTile(item, lanes, dayStart, ppm, { language, selectedId, onSelec
   button.style.width = `calc(${100 / lanes}% - 6px)`;
   button.style.backgroundColor = style.colour;
   if (selected) button.setAttribute("aria-current", "true");
-  button.append(el("span", { class: "cal-code", text: style.code }), el("span", { class: "cal-title", text: title }));
+  button.append(el("span", {
+    class: "cal-title",
+    text: title,
+    lang: sourceLanguage(session.language),
+    translate: "yes",
+  }));
   return button;
 }
 
