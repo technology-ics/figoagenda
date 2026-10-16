@@ -96,9 +96,27 @@ export const translations = {
     minutes: "{count} min",
     hours: "{hours} h {minutes} min",
     hoursOnly: "{hours} h",
+    roleChair: "Chair",
+    roleChairs: "Chairs",
     roleModerator: "Moderator",
+    roleModerators: "Moderators",
     roleSpeaker: "Speaker",
-    rolePanelist: "Panelist",
+    roleSpeakers: "Speakers",
+    rolePanelist: "Panellist",
+    rolePanelists: "Panellists",
+    moreFilters: "More filters",
+    runningOrder: "Programme",
+    untimedHeading: "Not scheduled at a specific time",
+    matchedSpeaker: "Matched speaker",
+    matchedChair: "Matched chair",
+    matchedModerator: "Matched moderator",
+    matchedPanelist: "Matched panellist",
+    matchedPerson: "Matched participant",
+    matchedPresentation: "Matched presentation",
+    matchedHost: "Matched organisation",
+    matchedStream: "Matched stream",
+    matchedTopic: "Matched special topic",
+    matchedDescription: "Matched in the description",
     langEnglish: "English",
     langFrench: "French",
     langSpanish: "Spanish",
@@ -107,7 +125,7 @@ export const translations = {
     openSession: "Open session",
     presentations: "Presentations",
     otherAgenda: "Other agenda details",
-    translateNotice: "Session titles and descriptions stay in the original language. Use your browser’s translate feature for the full page. Automated translation can be inaccurate.",
+    translateNotice: "Menus follow the language you select. Session titles and descriptions stay in the original programme language until you use your browser’s Translate command. Automated translation can be inaccurate.",
   },
   fr: {
     documentTitle: "Programme scientifique · FIGO Montréal 2027",
@@ -204,9 +222,27 @@ export const translations = {
     minutes: "{count} min",
     hours: "{hours} h {minutes} min",
     hoursOnly: "{hours} h",
+    roleChair: "Président",
+    roleChairs: "Présidents",
     roleModerator: "Modérateur",
+    roleModerators: "Modérateurs",
     roleSpeaker: "Intervenant",
+    roleSpeakers: "Intervenants",
     rolePanelist: "Panéliste",
+    rolePanelists: "Panélistes",
+    moreFilters: "Plus de filtres",
+    runningOrder: "Déroulement",
+    untimedHeading: "Sans horaire précis",
+    matchedSpeaker: "Intervenant correspondant",
+    matchedChair: "Président correspondant",
+    matchedModerator: "Modérateur correspondant",
+    matchedPanelist: "Panéliste correspondant",
+    matchedPerson: "Participant correspondant",
+    matchedPresentation: "Présentation correspondante",
+    matchedHost: "Organisation correspondante",
+    matchedStream: "Axe correspondant",
+    matchedTopic: "Thème spécial correspondant",
+    matchedDescription: "Correspondance dans la description",
     langEnglish: "Anglais",
     langFrench: "Français",
     langSpanish: "Espagnol",
@@ -215,7 +251,7 @@ export const translations = {
     openSession: "Ouvrir la séance",
     presentations: "Présentations",
     otherAgenda: "Autres éléments de l’ordre du jour",
-    translateNotice: "Les titres et descriptions restent dans la langue d’origine. Utilisez la traduction de votre navigateur pour toute la page. Une traduction automatique peut être inexacte.",
+    translateNotice: "Les menus suivent la langue choisie. Les titres et descriptions restent dans la langue d’origine du programme tant que vous n’utilisez pas la commande Traduire de votre navigateur. Une traduction automatique peut être inexacte.",
   },
   es: {
     documentTitle: "Programa científico · FIGO Montréal 2027",
@@ -312,9 +348,27 @@ export const translations = {
     minutes: "{count} min",
     hours: "{hours} h {minutes} min",
     hoursOnly: "{hours} h",
+    roleChair: "Presidente",
+    roleChairs: "Presidentes",
     roleModerator: "Moderador",
+    roleModerators: "Moderadores",
     roleSpeaker: "Ponente",
+    roleSpeakers: "Ponentes",
     rolePanelist: "Panelista",
+    rolePanelists: "Panelistas",
+    moreFilters: "Más filtros",
+    runningOrder: "Programa",
+    untimedHeading: "Sin una hora concreta",
+    matchedSpeaker: "Ponente coincidente",
+    matchedChair: "Presidente coincidente",
+    matchedModerator: "Moderador coincidente",
+    matchedPanelist: "Panelista coincidente",
+    matchedPerson: "Participante coincidente",
+    matchedPresentation: "Presentación coincidente",
+    matchedHost: "Organización coincidente",
+    matchedStream: "Eje coincidente",
+    matchedTopic: "Tema especial coincidente",
+    matchedDescription: "Coincidencia en la descripción",
     langEnglish: "Inglés",
     langFrench: "Francés",
     langSpanish: "Español",
@@ -323,15 +377,47 @@ export const translations = {
     openSession: "Abrir la sesión",
     presentations: "Presentaciones",
     otherAgenda: "Otros detalles del orden del día",
-    translateNotice: "Los títulos y las descripciones permanecen en el idioma original. Use la traducción de su navegador para toda la página. La traducción automática puede ser inexacta.",
+    translateNotice: "Los menús siguen el idioma seleccionado. Los títulos y las descripciones permanecen en el idioma original del programa hasta que use el comando Traducir de su navegador. La traducción automática puede ser inexacta.",
   },
 };
 
 const ROLE_KEYS = {
+  chair: "roleChair",
+  chairs: "roleChairs",
   moderator: "roleModerator",
+  moderators: "roleModerators",
   speaker: "roleSpeaker",
+  speakers: "roleSpeakers",
   panelist: "rolePanelist",
+  panellist: "rolePanelist",
+  panelists: "rolePanelists",
+  panellists: "rolePanelists",
 };
+
+export function roleKind(role) {
+  const name = foldRole(role);
+  if (name === "chair" || name === "chairs" || name === "co-chair" || name === "cochair") return "chair";
+  if (name === "moderator" || name === "moderators") return "moderator";
+  if (name === "speaker" || name === "speakers") return "speaker";
+  if (name === "panelist" || name === "panellist" || name === "panelists" || name === "panellists") return "panelist";
+  return "";
+}
+
+function foldRole(role) {
+  return String(role || "").trim().toLowerCase().replace(/['’]/g, "").replace(/\s+/g, " ");
+}
+
+export function roleLabel(role, count, language) {
+  const kind = roleKind(role);
+  const plural = count > 1;
+  const key = kind === "chair" ? (plural ? "roleChairs" : "roleChair")
+    : kind === "moderator" ? (plural ? "roleModerators" : "roleModerator")
+    : kind === "speaker" ? (plural ? "roleSpeakers" : "roleSpeaker")
+    : kind === "panelist" ? (plural ? "rolePanelists" : "rolePanelist")
+    : "";
+  if (key) return translate(language, key);
+  return String(role || "").trim();
+}
 
 const LANGUAGE_KEYS = {
   english: "langEnglish",

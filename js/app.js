@@ -1,6 +1,7 @@
 import { CONFIG } from "./config.js";
 import { fetchProgrammeCsv, mapHeaders, parseCsv } from "./data-loader.js";
-import { buildProgramme, orderedStreamNames, streamStyle } from "./data-model.js";
+import { buildProgramme, compareSessions, orderedStreamNames, streamStyle } from "./data-model.js";
+import { explainMatch } from "./search.js";
 import { activeFilterCount, clearFilters, collectFilterOptions, createFilterState, sessionMatches } from "./filters.js";
 import { renderCalendar } from "./agenda-calendar.js";
 import { renderList } from "./agenda-list.js";
@@ -60,11 +61,8 @@ function bindEvents() {
     updateChrome();
   });
   document.querySelector("#refresh").addEventListener("click", () => load());
-  document.querySelector("#filters-toggle").addEventListener("click", () => {
-    const panel = document.querySelector("#filters");
-    const open = panel.classList.toggle("is-open");
-    document.querySelector("#filters-toggle").setAttribute("aria-expanded", open ? "true" : "false");
-  });
+  document.querySelector("#filters-toggle").addEventListener("click", () => setFilterPanel());
+  document.querySelector("#more-filters").addEventListener("click", () => setFilterPanel());
   document.querySelector("#clear-filters").addEventListener("click", () => {
     clearFilters(state.filters);
     renderFilterOptions();
@@ -96,10 +94,10 @@ function bindEvents() {
   dialog().addEventListener("keydown", trapFocus);
   document.addEventListener("click", (event) => {
     if (event.target.closest(".discovery")) return;
-    const panel = document.querySelector("#filters");
-    if (!panel.classList.contains("is-open")) return;
-    panel.classList.remove("is-open");
-    document.querySelector("#filters-toggle").setAttribute("aria-expanded", "false");
+    closeFilterPanel();
+    document.querySelectorAll("#filters details[open]").forEach((group) => {
+      group.open = false;
+    });
   });
 }
 
@@ -180,6 +178,8 @@ function renderProgramme() {
     t,
     selectedId: state.selectedId,
     savedIds: state.savedIds,
+    query: state.query,
+    ranked: state.view === "list" && Boolean(state.query.trim()),
     onSelect: (id) => openSession(id),
   };
   if (state.view === "calendar") renderCalendar(main, sessions, options);
@@ -225,22 +225,24 @@ function renderDates() {
 
 function renderFilterOptions() {
   const container = document.querySelector("#filters");
+  const wasOpen = container.classList.contains("is-open");
   container.replaceChildren();
   const options = collectFilterOptions(state.sessions, state.language);
   const rooms = [...new Set(state.sessions.map((session) => session.room).filter(Boolean))].sort((a, b) => roomRank(a) - roomRank(b) || a.localeCompare(b, state.language));
   const groups = [
-    ["streams", "filterStream", orderedStreamNames(state.sessions)],
-    ["types", "filterType", options.types],
-    ["specials", "filterSpecial", options.specials],
-    ["rooms", "filterRoom", rooms],
-    ["languages", "filterLanguage", options.languages],
+    ["streams", "filterStream", orderedStreamNames(state.sessions), true],
+    ["types", "filterType", options.types, true],
+    ["specials", "filterSpecial", options.specials, false],
+    ["rooms", "filterRoom", rooms, false],
+    ["languages", "filterLanguage", options.languages, false],
   ];
+  const more = el("div", { class: "more-panel", id: "more-panel" });
 
-  for (const [name, labelKey, values] of groups) {
+  for (const [name, labelKey, values, primary] of groups) {
     if (!values.length) continue;
-    const group = el("fieldset", { class: "filter-group", "data-group": name });
-    const legend = el("legend");
-    legend.append(el("span", { "data-i18n": labelKey, text: t(labelKey) }), el("span", { class: "filter-selected", "data-filter-count": name }));
+    const group = el("details", { class: `filter-group ${primary ? "filter-primary" : "filter-more"}`, "data-group": name });
+    const summary = el("summary");
+    summary.append(el("span", { "data-i18n": labelKey, text: t(labelKey) }), el("span", { class: "filter-selected", "data-filter-count": name }));
     const list = el("div", { class: "filter-options" });
     values.forEach((value, index) => {
       const id = `filter-${name}-${index}`;
@@ -260,9 +262,42 @@ function renderFilterOptions() {
       }
       list.append(el("label", { for: id }, input, text));
     });
-    group.append(legend, list);
-    container.append(group);
+    group.append(summary, list);
+    if (primary) container.append(group);
+    else more.append(group);
   }
+  if (more.childElementCount) container.append(more);
+  if (wasOpen) {
+    container.classList.add("is-open");
+    container.querySelectorAll(".filter-more").forEach((group) => {
+      group.open = true;
+    });
+  }
+}
+
+function setFilterPanel() {
+  const panel = document.querySelector("#filters");
+  const open = panel.classList.toggle("is-open");
+  document.querySelector("#filters-toggle").setAttribute("aria-expanded", open ? "true" : "false");
+  document.querySelector("#more-filters").setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) {
+    panel.querySelectorAll(".filter-more").forEach((group) => {
+      group.open = true;
+    });
+    if (window.matchMedia("(max-width: 899px)").matches) {
+      panel.querySelectorAll(".filter-primary").forEach((group) => {
+        group.open = true;
+      });
+    }
+  }
+}
+
+function closeFilterPanel() {
+  const panel = document.querySelector("#filters");
+  if (!panel.classList.contains("is-open")) return;
+  panel.classList.remove("is-open");
+  document.querySelector("#filters-toggle").setAttribute("aria-expanded", "false");
+  document.querySelector("#more-filters").setAttribute("aria-expanded", "false");
 }
 
 function scopeDate() {
@@ -270,12 +305,23 @@ function scopeDate() {
   return state.date;
 }
 
-function visibleSessions() {
+function matchingSessions() {
   return state.sessions.filter((session) => sessionMatches(session, {
     query: state.query,
     filters: state.filters,
     date: state.view === "calendar" ? scopeDate() : state.date,
   }));
+}
+
+function visibleSessions() {
+  const sessions = matchingSessions();
+  if (state.mode === "programme" && state.view === "list" && state.query.trim()) {
+    return [...sessions].sort((a, b) => {
+      const rank = explainMatch(a, state.query).rank - explainMatch(b, state.query).rank;
+      return rank || compareSessions(a, b);
+    });
+  }
+  return sessions;
 }
 
 function programmeDates() {
@@ -315,8 +361,22 @@ function setLanguage(language) {
   renderFilterOptions();
   renderProgramme();
   const current = dialog();
-  if (current.open && state.selectedId) refreshDialog(state.selectedId);
+  if (current.open && state.selectedId) {
+    refreshDialog(state.selectedId);
+    revealSearchHit();
+  }
   updateChrome();
+}
+
+function revealSearchHit() {
+  if (!state.query.trim() || !dialog().open) return;
+  window.requestAnimationFrame(() => {
+    const scroller = dialog().querySelector(".dialog-body");
+    const hit = dialog().querySelector(".search-hit");
+    if (!scroller || !hit) return;
+    const top = hit.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 48;
+    scroller.scrollTop = Math.max(0, top);
+  });
 }
 
 function openSession(id, { fromLink = false } = {}) {
@@ -348,6 +408,7 @@ function openSession(id, { fromLink = false } = {}) {
     delete current.dataset.justOpened;
   }, 250);
   current.querySelector(".dialog-close")?.focus();
+  revealSearchHit();
   setSessionParam(id);
   if (fromLink) {
     document.querySelector(`[data-session-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -362,6 +423,7 @@ function refreshDialog(id) {
     t,
     saved: state.savedIds.includes(id),
     pageUrl: sessionPageUrl(id),
+    query: state.query,
     onToggleSave: () => setSaved(id, !state.savedIds.includes(id)),
   });
 }
@@ -509,6 +571,10 @@ function updateFilterCounts() {
   const badge = document.querySelector("#filter-count");
   badge.hidden = total === 0;
   badge.textContent = String(total);
+  const moreTotal = state.filters.specials.size + state.filters.rooms.size + state.filters.languages.size;
+  const moreBadge = document.querySelector("#more-count");
+  moreBadge.hidden = moreTotal === 0;
+  moreBadge.textContent = String(moreTotal);
   document.querySelector("#clear-filters").hidden = total === 0;
 }
 

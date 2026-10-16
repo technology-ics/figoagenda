@@ -335,7 +335,7 @@ function compareTimed(a, b) {
   return (a.order ?? a.number ?? 999) - (b.order ?? b.number ?? 999);
 }
 
-function compareSessions(a, b) {
+export function compareSessions(a, b) {
   if (a.date !== b.date) return (a.date || "9999").localeCompare(b.date || "9999");
   const aTime = a.startMinutes ?? 24 * 60;
   const bTime = b.startMinutes ?? 24 * 60;

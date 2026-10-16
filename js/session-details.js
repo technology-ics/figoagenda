@@ -1,11 +1,10 @@
-import { localContent, sourceLanguage, translateRole, translateSessionLanguage } from "./translations.js";
+import { localContent, roleKind, roleLabel, sourceLanguage, translateSessionLanguage } from "./translations.js";
 import { el, fold, formatIsoDate } from "./utils.js";
-import { streamStyle } from "./data-model.js";
-import { streamTag } from "./agenda-list.js";
+import { streamTag, fillHighlighted } from "./agenda-list.js";
 import { canExport, downloadIcs, googleCalendarUrl } from "./calendar-export.js";
 
 export function renderSessionDialog(dialog, session, options) {
-  const { language, t, saved, onToggleSave, pageUrl } = options;
+  const { language, t, saved, onToggleSave, pageUrl, query = "" } = options;
   const title = localContent(session.title, language) || session.id;
   const lang = sourceLanguage(session.language);
   dialog.replaceChildren();
@@ -18,36 +17,39 @@ export function renderSessionDialog(dialog, session, options) {
     "aria-label": t("closeSession"),
     onClick: () => dialog.close(),
   }));
-  header.append(el("h2", { id: "dialog-title", lang, translate: "yes", text: title }));
+  const heading = el("h2", { id: "dialog-title", lang, translate: "yes" });
+  fillHighlighted(heading, title, query);
+  header.append(heading);
   dialog.append(header);
 
   const body = el("div", { class: "dialog-body" });
   body.append(whenLine(session, language));
   if (session.hostOrganisation) {
-    body.append(el("p", { class: "host-line" },
-      el("span", { class: "meta-label", text: t("hostOrganisation") }),
-      document.createTextNode(" "),
-      el("span", { text: session.hostOrganisation, lang: "en", translate: "yes" }),
-    ));
+    const host = el("p", { class: "host-line" }, el("span", { class: "meta-label", text: t("hostOrganisation") }), document.createTextNode(" "));
+    const hostName = el("span", { lang: "en", translate: "yes" });
+    fillHighlighted(hostName, session.hostOrganisation, query);
+    host.append(hostName);
+    body.append(host);
   }
   const tags = detailTags(session, language, t);
   if (tags.childElementCount) body.append(tags);
-  if (session.formatNotes) body.append(el("p", { class: "hint", lang: "en", translate: "yes", text: session.formatNotes }));
   body.append(actionRow(session, { t, saved, onToggleSave, pageUrl }));
+  body.append(leadershipBlock(session, t, query));
 
   const description = localContent(session.description, language);
   if (description) {
     body.append(el("h3", { text: t("description") }));
     for (const paragraph of description.split(/\n+/)) {
-      if (paragraph.trim()) body.append(el("p", { lang, translate: "yes", text: paragraph.trim() }));
+      const text = paragraph.trim();
+      if (!text) continue;
+      const copy = el("p", { lang, translate: "yes" });
+      fillHighlighted(copy, text, query);
+      body.append(copy);
     }
   }
 
-  const presentations = session.agenda.filter((item) => item.kind === "presentation");
-  const other = session.agenda.filter((item) => item.kind !== "presentation");
-  if (presentations.length) body.append(el("h3", { text: t("presentations") }), agendaList(presentations, language, lang));
-  if (session.people.length) body.append(el("h3", { text: t("sessionRoles") }), personList(session.people, language));
-  if (other.length) body.append(el("h3", { text: t("otherAgenda") }), agendaList(other, language, lang));
+  body.append(programmeBlock(session, language, lang, t, query));
+  if (session.formatNotes) body.append(el("p", { class: "hint", lang: "en", translate: "yes", text: session.formatNotes }));
   dialog.append(body);
 }
 
@@ -142,31 +144,105 @@ async function copyLink(pageUrl, button, t) {
   }
 }
 
-function personList(people, language) {
-  return el("ul", { class: "people" }, ...people.map((person) => personItem(person, language)));
+function leadershipBlock(session, t, query) {
+  const { chairs, moderators } = collectLeadership(session);
+  if (!chairs.length && !moderators.length) return document.createDocumentFragment();
+  const section = el("section", { class: `leadership${chairs.length && moderators.length ? " has-both" : ""}` });
+  if (chairs.length) section.append(leaderGroup(chairs, t("roleChair"), t("roleChairs"), query));
+  if (moderators.length) section.append(leaderGroup(moderators, t("roleModerator"), t("roleModerators"), query));
+  return section;
 }
 
-function personItem(person, language) {
-  const affiliation = formatAffiliation(person);
-  return el("li", { class: "person" },
-    el("span", { class: "person-name notranslate", text: person.name, translate: "no" }),
-    person.role ? el("span", { class: "person-role", text: translateRole(person.role, language) }) : null,
-    affiliation ? el("span", { class: "person-aff", text: affiliation, lang: "en", translate: "yes" }) : null,
-  );
+function leaderGroup(people, singular, plural, query) {
+  const group = el("div", { class: "leader-group" });
+  group.append(el("h3", { text: people.length > 1 ? plural : singular }));
+  const list = el("ul", { class: "leaders" });
+  for (const person of people) {
+    const item = el("li", { class: "leader" });
+    const name = el("span", { class: "person-name", translate: "no" });
+    fillHighlighted(name, person.name, query);
+    item.append(name);
+    const affiliation = formatAffiliation(person);
+    if (affiliation) item.append(el("span", { class: "person-aff", text: affiliation, lang: "en", translate: "yes" }));
+    list.append(item);
+  }
+  group.append(list);
+  return group;
 }
 
-function agendaList(items, language, contentLang) {
+function collectLeadership(session) {
+  const chairs = [];
+  const moderators = [];
+  const seen = new Set();
+  const add = (person) => {
+    const kind = roleKind(person.role);
+    if (kind !== "chair" && kind !== "moderator") return;
+    const key = `${kind}|${fold(person.name)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    (kind === "chair" ? chairs : moderators).push(person);
+  };
+  for (const person of session.people || []) add(person);
+  for (const item of session.agenda || []) {
+    for (const person of item.people || []) add(person);
+  }
+  return { chairs, moderators };
+}
+
+function programmeBlock(session, language, contentLang, t, query) {
+  const fragment = document.createDocumentFragment();
+  const timed = [];
+  const untimed = [];
+  for (const item of session.agenda || []) {
+    if (item.startMinutes == null && !item.start) untimed.push(item);
+    else timed.push(item);
+  }
+  timed.sort((a, b) => (a.startMinutes ?? 0) - (b.startMinutes ?? 0) || (a.order ?? 999) - (b.order ?? 999));
+  if (timed.length) fragment.append(el("h3", { text: t("runningOrder") }), activityList(timed, language, contentLang, query, true));
+  if (untimed.length) fragment.append(el("h3", { text: t("untimedHeading") }), activityList(untimed, language, contentLang, query, false));
+  return fragment;
+}
+
+function activityList(items, language, contentLang, query, showTime) {
   const list = el("ol", { class: "agenda" });
   for (const item of items) {
     const title = localContent(item.title, language);
-    list.append(el("li", { class: "agenda-item-row" },
-      item.start && item.end ? el("p", { class: "agenda-time", text: `${item.start}–${item.end}` }) : null,
+    const titleNode = el("p", { class: "agenda-title", lang: contentLang, translate: "yes" });
+    if (title) fillHighlighted(titleNode, title, query);
+    const row = el("li", { class: "agenda-item-row" },
+      showTime && item.start && item.end ? el("p", { class: "agenda-time", text: `${item.start}–${item.end}` }) : null,
       item.type && fold(item.type) !== fold(title) ? el("p", { class: "agenda-type", text: item.type, lang: "en", translate: "yes" }) : null,
-      title ? el("p", { class: "agenda-title", text: title, lang: contentLang, translate: "yes" }) : null,
-      item.people?.length ? personList(item.people, language) : null,
-    ));
+      title ? titleNode : null,
+      item.people?.length ? activityPeople(item.people, language, query) : null,
+    );
+    list.append(row);
   }
   return list;
+}
+
+function activityPeople(people, language, query) {
+  const groups = new Map();
+  for (const person of people) {
+    const key = fold(person.role) || "participant";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(person);
+  }
+  const wrap = el("div", { class: "activity-people" });
+  for (const list of groups.values()) {
+    const line = el("p", { class: "agenda-person" });
+    const label = roleLabel(list[0].role, list.length, language);
+    if (label) line.append(el("span", { class: "person-role", text: `${label}:` }), document.createTextNode(" "));
+    list.forEach((person, index) => {
+      if (index) line.append(document.createTextNode(", "));
+      const name = el("span", { class: "person-name", translate: "no" });
+      fillHighlighted(name, person.name, query);
+      line.append(name);
+      const affiliation = formatAffiliation(person);
+      if (affiliation) line.append(document.createTextNode(" "), el("span", { class: "person-aff", text: affiliation, lang: "en", translate: "yes" }));
+    });
+    wrap.append(line);
+  }
+  return wrap;
 }
 
 function formatAffiliation(person) {

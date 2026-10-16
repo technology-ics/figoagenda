@@ -3,6 +3,7 @@ import { CONFIG } from "./config.js";
 import { fetchProgrammeCsv, mapHeaders, parseCsv } from "./data-loader.js";
 import { buildProgramme } from "./data-model.js";
 import { sessionMatches, createFilterState } from "./filters.js";
+import { explainMatch, highlightRanges } from "./search.js";
 import { buildIcs, zonedWallTimeToUtc } from "./calendar-export.js";
 import { fold, parseDate } from "./utils.js";
 
@@ -34,6 +35,16 @@ assert.equal(fold("Lucía"), fold("lucia"));
 
 const filters = createFilterState();
 assert.equal(sessionMatches(first, { query: "lucia kim", filters, date: "all" }), true);
+const speakerHit = explainMatch(first, "Lucía Kim");
+assert.equal(speakerHit.rank, 2);
+assert.equal(speakerHit.hits[0].kind, "person");
+assert.equal(speakerHit.hits[0].name, "Dr Lucía Kim");
+assert.match(speakerHit.hits[0].activityTitle, /Talk, one/);
+const titleHit = explainMatch(first, "Hello, world");
+assert.equal(titleHit.rank, 1);
+assert.deepEqual(highlightRanges("Dr Lucía Kim", "lucia"), [[3, 8]]);
+const timed = first.agenda.filter((item) => item.startMinutes != null);
+assert.ok(timed.every((item, index) => index === 0 || item.startMinutes >= timed[index - 1].startMinutes));
 assert.equal(sessionMatches(first, { query: "missing person", filters, date: "all" }), false);
 filters.specials.add("Pain");
 assert.equal(sessionMatches(first, { query: "", filters, date: "all" }), false);
